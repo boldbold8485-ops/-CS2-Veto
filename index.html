@@ -95,6 +95,9 @@ button:hover { background:#475569; }
     <h4>Coin Toss</h4>
     <div id="coinResult">Not rolled yet</div>
     <button onclick="runCoinToss()">Roll Coin Toss</button>
+    <div style="margin-top:8px; opacity:0.8; font-size:14px;">
+      Coin toss-д хожигдсон баг эхний BAN хийнэ
+    </div>
   </div>
 
   <h3 id="turn"></h3>
@@ -120,7 +123,8 @@ button:hover { background:#475569; }
 
 <script>
 const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk
+  ";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -133,6 +137,42 @@ let channel = null;
 
 function genCode(){
   return Math.random().toString(36).substring(2,6).toUpperCase();
+}
+
+function getCoinTossAction() {
+  if (!room || !Array.isArray(room.actions)) return null;
+  return room.actions.find(a => a.type === "COIN TOSS") || null;
+}
+
+function getStartingTeamKey() {
+  const toss = getCoinTossAction();
+
+  // Coin toss winner = toss.team
+  // Loser starts first BAN
+  if (toss) {
+    if (toss.team === room.team_a) return "B";
+    if (toss.team === room.team_b) return "A";
+  }
+
+  // coin toss хийгдээгүй бол default A
+  return "A";
+}
+
+function getCurrentTurnTeamKey() {
+  const startTeam = getStartingTeamKey();
+  return room.turn_index % 2 === 0
+    ? startTeam
+    : (startTeam === "A" ? "B" : "A");
+}
+
+function canPlayNow() {
+  if (!room) return false;
+  if (room.maps.length === 1) return false;
+
+  const toss = getCoinTossAction();
+  if (!toss) return false;
+
+  return role === getCurrentTurnTeamKey();
 }
 
 async function createRoom(){
@@ -239,10 +279,18 @@ function render(){
   document.getElementById("opponentLink").value =
     base + "?room=" + room.room_code + "&role=" + opponentRole;
 
-  const turnTeam = room.turn_index % 2 === 0 ? "A" : "B";
-  document.getElementById("turn").innerText = room.maps.length === 1
-    ? "Veto complete"
-    : "Turn: " + (turnTeam === "A" ? room.team_a : room.team_b) + " " + (seq[room.turn_index] || "");
+  const toss = getCoinTossAction();
+  const currentTurnTeamKey = getCurrentTurnTeamKey();
+  const currentTurnName = currentTurnTeamKey === "A" ? room.team_a : room.team_b;
+
+  if (!toss) {
+    document.getElementById("turn").innerText = "Эхлээд Coin Toss хийнэ";
+  } else if (room.maps.length === 1) {
+    document.getElementById("turn").innerText = "Veto complete";
+  } else {
+    document.getElementById("turn").innerText =
+      "Turn: " + currentTurnName + " " + (seq[room.turn_index] || "");
+  }
 
   maps.innerHTML = "";
   picked.innerHTML = "";
@@ -254,7 +302,7 @@ function render(){
     const btn = document.createElement("button");
     btn.innerText = m;
 
-    if (role !== turnTeam || room.maps.length === 1) {
+    if (!canPlayNow()) {
       btn.classList.add("disabled");
     } else {
       btn.onclick = () => pick(m);
@@ -265,7 +313,8 @@ function render(){
 
   room.actions.forEach(a => {
     if (a.type === "COIN TOSS") {
-      coinResult.innerText = a.team + " won the coin toss";
+      const loser = a.team === room.team_a ? room.team_b : room.team_a;
+      coinResult.innerText = a.team + " won the coin toss. " + loser + " starts first BAN.";
 
       const coinPill = document.createElement("div");
       coinPill.className = "pill coin";
@@ -296,9 +345,18 @@ function render(){
 }
 
 async function pick(map){
+  const toss = getCoinTossAction();
+  if (!toss) {
+    alert("Эхлээд coin toss хийнэ");
+    return;
+  }
+
+  const actingTeamKey = getCurrentTurnTeamKey();
+  const actingTeamName = actingTeamKey === "A" ? room.team_a : room.team_b;
+
   const newMaps = room.maps.filter(m => m !== map);
   const newActions = [...room.actions, {
-    team: (room.turn_index % 2 === 0 ? room.team_a : room.team_b),
+    team: actingTeamName,
     type: seq[room.turn_index],
     map
   }];
