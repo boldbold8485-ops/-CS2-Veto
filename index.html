@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Aduu CS2 Veto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background:#0f172a;
+      color:white;
+      text-align:center;
+      font-family:sans-serif;
+    }
+    h2 { margin-top:20px; }
+
+    button {
+      margin:6px;
+      padding:12px;
+      width:220px;
+      background:#1e293b;
+      color:white;
+      border:none;
+      border-radius:10px;
+      font-size:16px;
+    }
+
+    button:hover {
+      background:#334155;
+    }
+
+    input {
+      margin:5px;
+      padding:10px;
+      border-radius:8px;
+      border:none;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🐎 Aduu CS2 BO3 Veto</h2>
+
+<input id="teamA" value="Team Ankhaa">
+<input id="teamB" value="Team Bagi"><br>
+
+<button onclick="start()">Start Veto</button>
+
+<h3 id="turn"></h3>
+<div id="maps"></div>
+
+<script>
+let maps = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
+let turn = 0;
+let teams = [];
+
+let sequence = ["BAN","BAN","PICK","PICK","BAN","BAN"];
+
+function start(){
+  teams = [
+    document.getElementById("teamA").value,
+    document.getElementById("teamB").value
+  ];
+  render();
+}
+
+function render(){
+  document.getElementById("turn").innerText =
+    teams[turn % 2] + " " + sequence[turn];
+
+  let container = document.getElementById("maps");
+  container.innerHTML = "";
+
+  maps.forEach((map, i)=>{
+    let btn = document.createElement("button");
+    btn.innerText = map;
+
+    btn.onclick = ()=>{
+      maps.splice(i,1);
+      turn++;
+
+      if(maps.length === 1){
+        alert("🔥 Final Map: " + maps[0]);
+      }
+
+      render();
+    };
+
+    container.appendChild(btn);
+  });
+}
+</script>
+
+</body>
+</html>
