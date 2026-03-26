@@ -1,93 +1,273 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Aduu CS2 Veto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aduu CS2 Map Veto</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      background:#0f172a;
-      color:white;
-      text-align:center;
-      font-family:sans-serif;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
     }
-    h2 { margin-top:20px; }
-
+    .box {
+      max-width: 700px;
+      margin: auto;
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 14px;
+    }
+    input, button, select {
+      padding: 10px;
+      margin: 6px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
     button {
-      margin:6px;
-      padding:12px;
-      width:220px;
-      background:#1e293b;
-      color:white;
-      border:none;
-      border-radius:10px;
-      font-size:16px;
+      background: #334155;
+      color: white;
+      cursor: pointer;
     }
-
     button:hover {
-      background:#334155;
+      background: #475569;
     }
-
-    input {
-      margin:5px;
-      padding:10px;
-      border-radius:8px;
-      border:none;
+    .map-btn {
+      display: block;
+      width: 100%;
+      max-width: 280px;
+      margin: 8px auto;
+      background: #111827;
+    }
+    .disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .row {
+      margin-top: 10px;
+    }
+    .action-log {
+      text-align: left;
+      margin-top: 20px;
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 10px;
     }
   </style>
 </head>
 <body>
+  <div class="box">
+    <h1>🐎 Aduu CS2 Map Veto</h1>
 
-<h2>🐎 Aduu CS2 BO3 Veto</h2>
+    <div id="setup">
+      <div class="row">
+        <input id="teamA" value="Team Ankhaa" placeholder="Team A name" />
+        <input id="teamB" value="Team Bagi" placeholder="Team B name" />
+      </div>
 
-<input id="teamA" value="Team Ankhaa">
-<input id="teamB" value="Team Bagi"><br>
+      <div class="row">
+        <select id="role">
+          <option value="A">Captain A</option>
+          <option value="B">Captain B</option>
+          <option value="spectator">Spectator</option>
+        </select>
+      </div>
 
-<button onclick="start()">Start Veto</button>
+      <div class="row">
+        <button onclick="createRoom()">Create Room</button>
+      </div>
 
-<h3 id="turn"></h3>
-<div id="maps"></div>
+      <div class="row">
+        <input id="roomCodeInput" placeholder="Enter room code" />
+        <button onclick="joinRoom()">Join Room</button>
+      </div>
+    </div>
 
-<script>
-let maps = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
-let turn = 0;
-let teams = [];
+    <div id="game" style="display:none;">
+      <h2 id="roomTitle"></h2>
+      <p id="statusText"></p>
+      <div id="maps"></div>
+      <div class="action-log">
+        <h3>Veto Log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
 
-let sequence = ["BAN","BAN","PICK","PICK","BAN","BAN"];
+  <script>
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-function start(){
-  teams = [
-    document.getElementById("teamA").value,
-    document.getElementById("teamB").value
-  ];
-  render();
-}
+    const initialMaps = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
+    const sequence = ["BAN", "BAN", "PICK", "PICK", "BAN", "BAN"];
 
-function render(){
-  document.getElementById("turn").innerText =
-    teams[turn % 2] + " " + sequence[turn];
+    let currentRoom = null;
+    let currentRole = null;
+    let channel = null;
 
-  let container = document.getElementById("maps");
-  container.innerHTML = "";
+    function generateRoomCode() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
 
-  maps.forEach((map, i)=>{
-    let btn = document.createElement("button");
-    btn.innerText = map;
+    async function createRoom() {
+      const room_code = generateRoomCode();
+      const team_a = document.getElementById("teamA").value || "Team Ankhaa";
+      const team_b = document.getElementById("teamB").value || "Team Bagi";
+      currentRole = document.getElementById("role").value;
 
-    btn.onclick = ()=>{
-      maps.splice(i,1);
-      turn++;
+      const { error } = await supabaseClient.from("rooms").insert([{
+        room_code,
+        team_a,
+        team_b,
+        turn_index: 0,
+        maps: initialMaps,
+        actions: [],
+        status: "live"
+      }]);
 
-      if(maps.length === 1){
-        alert("🔥 Final Map: " + maps[0]);
+      if (error) {
+        alert("Room create error");
+        console.error(error);
+        return;
       }
 
-      render();
-    };
+      document.getElementById("roomCodeInput").value = room_code;
+      await loadRoom(room_code);
+    }
 
-    container.appendChild(btn);
-  });
-}
-</script>
+    async function joinRoom() {
+      const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+      currentRole = document.getElementById("role").value;
+      await loadRoom(code);
+    }
 
+    async function loadRoom(code) {
+      const { data, error } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .eq("room_code", code)
+        .single();
+
+      if (error || !data) {
+        alert("Room not found");
+        console.error(error);
+        return;
+      }
+
+      currentRoom = data;
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("game").style.display = "block";
+
+      renderRoom();
+
+      if (channel) {
+        await supabaseClient.removeChannel(channel);
+      }
+
+      channel = supabaseClient
+        .channel("room-" + code)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "rooms",
+            filter: `room_code=eq.${code}`
+          },
+          (payload) => {
+            currentRoom = payload.new;
+            renderRoom();
+          }
+        )
+        .subscribe();
+    }
+
+    function renderRoom() {
+      const roomTitle = document.getElementById("roomTitle");
+      const statusText = document.getElementById("statusText");
+      const mapsDiv = document.getElementById("maps");
+      const logDiv = document.getElementById("log");
+
+      roomTitle.innerText = `Room: ${currentRoom.room_code} | ${currentRoom.team_a} vs ${currentRoom.team_b}`;
+
+      let turnText = "";
+      const turn = currentRoom.turn_index;
+      const maps = currentRoom.maps || [];
+      const actions = currentRoom.actions || [];
+
+      if (maps.length === 1) {
+        turnText = `Final Decider Map: ${maps[0]}`;
+      } else {
+        const teamTurn = turn % 2 === 0 ? "A" : "B";
+        const teamName = teamTurn === "A" ? currentRoom.team_a : currentRoom.team_b;
+        const actionType = sequence[turn] || "DONE";
+        turnText = `${teamName} ${actionType}`;
+      }
+
+      statusText.innerText = turnText;
+      mapsDiv.innerHTML = "";
+
+      maps.forEach((map) => {
+        const btn = document.createElement("button");
+        btn.className = "map-btn";
+        btn.innerText = map;
+
+        const expectedRole = currentRoom.turn_index % 2 === 0 ? "A" : "B";
+        const canPlay = currentRole === expectedRole && maps.length > 1;
+
+        if (!canPlay) {
+          btn.classList.add("disabled");
+        } else {
+          btn.onclick = () => chooseMap(map);
+        }
+
+        mapsDiv.appendChild(btn);
+      });
+
+      logDiv.innerHTML = actions.map(a => `<div>${a.team} ${a.type} - ${a.map}</div>`).join("");
+
+      if (maps.length === 1 && actions.every(a => a.type !== "DECIDER")) {
+        logDiv.innerHTML += `<div><b>DECIDER - ${maps[0]}</b></div>`;
+      }
+    }
+
+    async function chooseMap(map) {
+      const maps = [...currentRoom.maps];
+      const actions = [...currentRoom.actions];
+      const turn = currentRoom.turn_index;
+
+      if (maps.length <= 1) return;
+
+      const actionType = sequence[turn];
+      const teamKey = turn % 2 === 0 ? "A" : "B";
+      const teamName = teamKey === "A" ? currentRoom.team_a : currentRoom.team_b;
+
+      const newMaps = maps.filter(m => m !== map);
+      actions.push({
+        team: teamName,
+        type: actionType,
+        map: map
+      });
+
+      const { error } = await supabaseClient
+        .from("rooms")
+        .update({
+          maps: newMaps,
+          actions: actions,
+          turn_index: turn + 1
+        })
+        .eq("id", currentRoom.id);
+
+      if (error) {
+        alert("Update error");
+        console.error(error);
+      }
+    }
+  </script>
 </body>
 </html>
