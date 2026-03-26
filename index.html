@@ -33,6 +33,15 @@ button:hover { background:#475569; }
 .ban { background:#7f1d1d; }
 .decider { background:#065f46; }
 .coin { background:#854d0e; }
+
+.locked-name {
+  display:inline-block;
+  background:#0b1220;
+  padding:10px 14px;
+  margin:5px;
+  border-radius:8px;
+  min-width:180px;
+}
 </style>
 </head>
 
@@ -43,120 +52,136 @@ button:hover { background:#475569; }
 <h2>🐎 Aduu CS2 Map Veto</h2>
 
 <div id="setup">
-<input id="teamA" value="Team Ankhaa">
-<input id="teamB" value="Team Bagi"><br>
+  <input id="teamA" value="Team Ankhaa">
+  <input id="teamB" value="Team Bagi"><br>
 
-<select id="role">
-<option value="A">А багийн ахлагч</option>
-<option value="B">Б багийн ахлагч</option>
-<option value="spectator">Spectator</option>
-</select><br>
+  <select id="role">
+    <option value="A">Captain A</option>
+    <option value="B">Captain B</option>
+    <option value="spectator">Spectator</option>
+  </select><br>
 
-<button onclick="createRoom()">Create Room</button><br>
+  <button onclick="createRoom()">Create Room</button><br>
 
-<input id="roomCodeInput" placeholder="Room Code">
-<button onclick="joinRoom()">Join Room</button>
+  <input id="roomCodeInput" placeholder="Room Code">
+  <button onclick="joinRoom()">Join Room</button>
 </div>
 
 <div id="game" style="display:none;">
 
-<h3 id="title"></h3>
+  <h3 id="title"></h3>
 
-<div class="section">
-<div class="room-code" id="roomCodeText"></div>
-<button onclick="copyCode()">Copy Code</button>
-</div>
+  <div class="section">
+    <h4>Teams</h4>
+    <div>
+      <span id="teamAName" class="locked-name"></span>
+      <span id="teamBName" class="locked-name"></span>
+    </div>
+  </div>
 
-<div class="section">
-<h4>Links</h4>
-<input id="linkA" style="width:80%" readonly><br>
-<button onclick="copyA()">Copy А багийн ахлагч Link</button><br>
+  <div class="section">
+    <div class="room-code" id="roomCodeText"></div>
+    <button onclick="copyCode()">Copy Code</button>
+  </div>
 
-<input id="linkB" style="width:80%" readonly><br>
-<button onclick="copyB()">Copy Б багийн ахлагч Link</button>
-</div>
+  <div class="section">
+    <h4>Opponent Link</h4>
+    <div style="margin-bottom:8px;">B багийн ахлагчид энэ link-ийг явуулна</div>
+    <input id="opponentLink" style="width:80%" readonly><br>
+    <button onclick="copyOpponentLink()">Copy Opponent Link</button>
+  </div>
 
-<div class="section">
-<h4>Coin Toss</h4>
-<div id="coinResult">Not rolled yet</div>
-<button onclick="runCoinToss()">Roll Coin Toss</button>
-</div>
+  <div class="section">
+    <h4>Coin Toss</h4>
+    <div id="coinResult">Not rolled yet</div>
+    <button onclick="runCoinToss()">Roll Coin Toss</button>
+  </div>
 
-<h3 id="turn"></h3>
+  <h3 id="turn"></h3>
 
-<div id="maps" class="map-list"></div>
+  <div id="maps" class="map-list"></div>
 
-<div class="section">
-<h4>Picked</h4>
-<div id="picked"></div>
+  <div class="section">
+    <h4>Picked</h4>
+    <div id="picked"></div>
 
-<h4>Banned</h4>
-<div id="banned"></div>
-</div>
+    <h4>Banned</h4>
+    <div id="banned"></div>
+  </div>
 
-<div class="section log">
-<h4>Log</h4>
-<div id="log"></div>
-</div>
+  <div class="section log">
+    <h4>Log</h4>
+    <div id="log"></div>
+  </div>
 
 </div>
 
 </div>
 
 <script>
-
 const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Dust2"];
+const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
 const seq = ["BAN","BAN","PICK","PICK","BAN","BAN"];
 
 let room = null;
 let role = null;
 let channel = null;
 
-function genCode(){ 
-  return Math.random().toString(36).substring(2,6).toUpperCase(); 
+function genCode(){
+  return Math.random().toString(36).substring(2,6).toUpperCase();
 }
 
 async function createRoom(){
   const code = genCode();
-  role = document.getElementById("role").value;
+  role = "A";
+  document.getElementById("role").value = "A";
 
-  const {error} = await supabaseClient.from("rooms").insert([{
+  const teamAValue = document.getElementById("teamA").value.trim() || "Team Ankhaa";
+  const teamBValue = document.getElementById("teamB").value.trim() || "Team Bagi";
+
+  const { error } = await supabaseClient.from("rooms").insert([{
     room_code: code,
-    team_a: teamA.value,
-    team_b: teamB.value,
+    team_a: teamAValue,
+    team_b: teamBValue,
     maps: mapsDefault,
     actions: [],
     turn_index: 0
   }]);
 
-  if(error){ 
-    alert("error"); 
-    console.log(error); 
-    return; 
+  if (error) {
+    alert("Room create error");
+    console.log(error);
+    return;
   }
 
-  roomCodeInput.value = code;
-  loadRoom(code);
+  document.getElementById("roomCodeInput").value = code;
+  await loadRoom(code);
 }
 
 async function joinRoom(){
   role = document.getElementById("role").value;
-  loadRoom(roomCodeInput.value);
+
+  const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+  if (!code) {
+    alert("Room code оруулна уу");
+    return;
+  }
+
+  await loadRoom(code);
 }
 
 async function loadRoom(code){
-  const {data, error} = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("rooms")
     .select("*")
     .eq("room_code", code.toUpperCase())
     .single();
 
-  if(error || !data){
+  if (error || !data) {
     alert("Room not found");
     console.log(error);
     return;
@@ -164,12 +189,12 @@ async function loadRoom(code){
 
   room = normalizeRoom(data);
 
-  setup.style.display="none";
-  game.style.display="block";
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("game").style.display = "block";
 
   render();
 
-  if(channel){
+  if (channel) {
     await supabaseClient.removeChannel(channel);
   }
 
@@ -178,10 +203,10 @@ async function loadRoom(code){
     .on(
       "postgres_changes",
       {
-        event:"UPDATE",
-        schema:"public",
-        table:"rooms",
-        filter:`room_code=eq.${room.room_code}`
+        event: "UPDATE",
+        schema: "public",
+        table: "rooms",
+        filter: `room_code=eq.${room.room_code}`
       },
       payload => {
         room = normalizeRoom(payload.new);
@@ -200,38 +225,46 @@ function normalizeRoom(data){
 }
 
 function render(){
-
-  title.innerText = room.team_a + " vs " + room.team_b;
-  roomCodeText.innerText = room.room_code;
+  document.getElementById("title").innerText = room.team_a + " vs " + room.team_b;
+  document.getElementById("roomCodeText").innerText = room.room_code;
+  document.getElementById("teamAName").innerText = room.team_a;
+  document.getElementById("teamBName").innerText = room.team_b;
 
   const base = location.origin + location.pathname;
 
-  linkA.value = base + "?room=" + room.room_code + "&role=A";
-  linkB.value = base + "?room=" + room.room_code + "&role=B";
+  let opponentRole = "B";
+  if (role === "B") opponentRole = "A";
+  if (role === "spectator") opponentRole = "B";
 
-  const turnTeam = room.turn_index % 2 === 0 ? "A":"B";
-  turn.innerText = room.maps.length === 1
+  document.getElementById("opponentLink").value =
+    base + "?room=" + room.room_code + "&role=" + opponentRole;
+
+  const turnTeam = room.turn_index % 2 === 0 ? "A" : "B";
+  document.getElementById("turn").innerText = room.maps.length === 1
     ? "Veto complete"
-    : "Turn: " + (turnTeam==="A" ? room.team_a : room.team_b) + " " + (seq[room.turn_index] || "");
+    : "Turn: " + (turnTeam === "A" ? room.team_a : room.team_b) + " " + (seq[room.turn_index] || "");
 
-  maps.innerHTML="";
-  picked.innerHTML="";
-  banned.innerHTML="";
-  log.innerHTML="";
+  maps.innerHTML = "";
+  picked.innerHTML = "";
+  banned.innerHTML = "";
+  log.innerHTML = "";
   coinResult.innerText = "Not rolled yet";
 
-  room.maps.forEach(m=>{
+  room.maps.forEach(m => {
     const btn = document.createElement("button");
     btn.innerText = m;
 
-    if(role!==turnTeam || room.maps.length===1) btn.classList.add("disabled");
-    else btn.onclick = ()=>pick(m);
+    if (role !== turnTeam || room.maps.length === 1) {
+      btn.classList.add("disabled");
+    } else {
+      btn.onclick = () => pick(m);
+    }
 
     maps.appendChild(btn);
   });
 
-  room.actions.forEach(a=>{
-    if(a.type === "COIN TOSS"){
+  room.actions.forEach(a => {
+    if (a.type === "COIN TOSS") {
       coinResult.innerText = a.team + " won the coin toss";
 
       const coinPill = document.createElement("div");
@@ -240,52 +273,52 @@ function render(){
       picked.appendChild(coinPill);
     }
 
-    const div=document.createElement("div");
-    div.innerText=a.team+" "+a.type+" "+a.map;
+    const div = document.createElement("div");
+    div.innerText = a.team + " " + a.type + " " + a.map;
     log.appendChild(div);
 
-    if(a.type === "PICK" || a.type === "BAN"){
-      const pill=document.createElement("div");
-      pill.className="pill "+(a.type==="PICK"?"pick":"ban");
-      pill.innerText=a.map + " - " + a.team;
+    if (a.type === "PICK" || a.type === "BAN") {
+      const pill = document.createElement("div");
+      pill.className = "pill " + (a.type === "PICK" ? "pick" : "ban");
+      pill.innerText = a.map + " - " + a.team;
 
-      if(a.type==="PICK") picked.appendChild(pill);
+      if (a.type === "PICK") picked.appendChild(pill);
       else banned.appendChild(pill);
     }
   });
 
-  if(room.maps.length===1){
-    const d=document.createElement("div");
-    d.className="pill decider";
-    d.innerText="DECIDER " + room.maps[0];
+  if (room.maps.length === 1) {
+    const d = document.createElement("div");
+    d.className = "pill decider";
+    d.innerText = "DECIDER " + room.maps[0];
     picked.appendChild(d);
   }
 }
 
 async function pick(map){
-  const newMaps = room.maps.filter(m=>m!==map);
-  const newActions = [...room.actions,{
-    team: (room.turn_index%2===0 ? room.team_a : room.team_b),
+  const newMaps = room.maps.filter(m => m !== map);
+  const newActions = [...room.actions, {
+    team: (room.turn_index % 2 === 0 ? room.team_a : room.team_b),
     type: seq[room.turn_index],
     map
   }];
 
-  const {error} = await supabaseClient.from("rooms").update({
-    maps:newMaps,
-    actions:newActions,
-    turn_index:room.turn_index+1
-  }).eq("id",room.id);
+  const { error } = await supabaseClient.from("rooms").update({
+    maps: newMaps,
+    actions: newActions,
+    turn_index: room.turn_index + 1
+  }).eq("id", room.id);
 
-  if(error){
+  if (error) {
     alert("Update error");
     console.log(error);
   }
 }
 
 async function runCoinToss(){
-  if(!room) return;
+  if (!room) return;
 
-  if(room.actions.some(a => a.type === "COIN TOSS")){
+  if (room.actions.some(a => a.type === "COIN TOSS")) {
     alert("Coin toss already done");
     return;
   }
@@ -298,17 +331,17 @@ async function runCoinToss(){
     map: "-"
   }];
 
-  const {error} = await supabaseClient.from("rooms").update({
+  const { error } = await supabaseClient.from("rooms").update({
     actions: newActions
   }).eq("id", room.id);
 
-  if(error){
+  if (error) {
     alert("Coin toss error");
     console.log(error);
   }
 }
 
-async function copyCode(){ 
+async function copyCode(){
   try {
     await navigator.clipboard.writeText(room.room_code);
     alert("Code copied");
@@ -317,33 +350,24 @@ async function copyCode(){
   }
 }
 
-async function copyA(){ 
+async function copyOpponentLink(){
   try {
-    await navigator.clipboard.writeText(linkA.value);
-    alert("Captain A link copied");
+    await navigator.clipboard.writeText(document.getElementById("opponentLink").value);
+    alert("Opponent link copied");
   } catch {
     alert("Copy failed");
   }
 }
 
-async function copyB(){ 
-  try {
-    await navigator.clipboard.writeText(linkB.value);
-    alert("Captain B link copied");
-  } catch {
-    alert("Copy failed");
-  }
-}
-
-window.onload = async ()=>{
+window.onload = async () => {
   const p = new URLSearchParams(location.search);
   const roomParam = p.get("room");
   const roleParam = p.get("role");
 
-  if(roomParam){
+  if (roomParam) {
     roomCodeInput.value = roomParam.toUpperCase();
 
-    if(roleParam === "A" || roleParam === "B" || roleParam === "spectator"){
+    if (roleParam === "A" || roleParam === "B" || roleParam === "spectator") {
       document.getElementById("role").value = roleParam;
       role = roleParam;
     }
@@ -351,7 +375,6 @@ window.onload = async ()=>{
     await joinRoom();
   }
 };
-
 </script>
 
 </body>
