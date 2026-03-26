@@ -16,15 +16,15 @@
     }
 
     .box {
-      max-width: 760px;
+      max-width: 950px;
       margin: 0 auto;
-      background: #1b2a41;
+      background: #18263b;
       padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.28);
     }
 
-    h1, h2, h3, p {
+    h1, h2, h3, h4, p {
       margin-top: 0;
     }
 
@@ -55,24 +55,15 @@
       pointer-events: none;
     }
 
-    .map-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .map-btn {
-      min-width: 110px;
-    }
-
-    .room-code-box {
+    .room-code-box,
+    .status-box,
+    .section-box,
+    .final-box {
       background: #0f172a;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
       padding: 16px;
-      margin: 18px 0;
+      margin: 16px 0;
     }
 
     .room-code {
@@ -88,16 +79,37 @@
       font-size: 14px;
     }
 
+    .map-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .map-btn {
+      min-width: 110px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      text-align: left;
+      margin-top: 16px;
+    }
+
     .log-box {
       text-align: left;
-      margin-top: 20px;
       background: #0f172a;
       border-radius: 12px;
       padding: 16px;
+      margin-top: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .log-item {
-      padding: 6px 0;
+      padding: 8px 0;
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
@@ -105,18 +117,39 @@
       border-bottom: none;
     }
 
-    .final-box {
-      margin-top: 18px;
-      padding: 16px;
-      border-radius: 12px;
-      background: #0f172a;
-      border: 1px solid rgba(255,255,255,0.08);
+    .pill {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      margin: 4px;
+      background: #24364f;
+      font-size: 14px;
     }
 
-    .turn-box {
-      margin: 14px 0 10px;
-      font-size: 18px;
-      font-weight: 600;
+    .pick-pill {
+      background: #1d4ed8;
+    }
+
+    .ban-pill {
+      background: #7f1d1d;
+    }
+
+    .decider-pill {
+      background: #065f46;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .room-code {
+        font-size: 26px;
+        letter-spacing: 3px;
+      }
     }
   </style>
 </head>
@@ -133,7 +166,7 @@
       <div>
         <select id="role">
           <option value="A">Team Ankhaa</option>
-          <option value="B">Team Bagi</option>
+          <option value="B">Team Ankhaa</option>
           <option value="spectator">Spectator</option>
         </select>
       </div>
@@ -151,20 +184,38 @@
     <div id="game" style="display:none;">
       <h2 id="title"></h2>
 
-      <div class="room-code-box">
+      <div class="room-code-box center">
         <div class="small-text">Share this code with the other captain</div>
         <div class="room-code" id="roomCodeText">----</div>
         <button onclick="copyRoomCode()">Copy Code</button>
       </div>
 
-      <div class="turn-box" id="turn"></div>
-
-      <div id="finalMapBox" class="final-box" style="display:none;">
-        <h3>Final Decider Map</h3>
-        <div id="finalMapText" style="font-size: 28px; font-weight: 700;"></div>
+      <div class="status-box center">
+        <h3 id="turn"></h3>
+        <div class="small-text" id="roleInfo"></div>
       </div>
 
-      <div class="map-list" id="maps"></div>
+      <div id="finalMapBox" class="final-box center" style="display:none;">
+        <h3>Final Decider Map</h3>
+        <div id="finalMapText" style="font-size: 30px; font-weight: 700;"></div>
+      </div>
+
+      <div class="section-box">
+        <h3 class="center">Available Maps</h3>
+        <div class="map-list" id="maps"></div>
+      </div>
+
+      <div class="grid">
+        <div class="section-box">
+          <h3>Picked Maps</h3>
+          <div id="pickedMaps"></div>
+        </div>
+
+        <div class="section-box">
+          <h3>Banned Maps</h3>
+          <div id="bannedMaps"></div>
+        </div>
+      </div>
 
       <div class="log-box">
         <h3>Veto Log</h3>
@@ -264,6 +315,7 @@
             filter: `room_code=eq.${code}`
           },
           (payload) => {
+            if (!payload.new) return;
             room = normalizeRoom(payload.new);
             render();
           }
@@ -292,9 +344,19 @@
       const finalMapBox = document.getElementById("finalMapBox");
       const finalMapText = document.getElementById("finalMapText");
       const turnDiv = document.getElementById("turn");
+      const roleInfo = document.getElementById("roleInfo");
+      const pickedMapsDiv = document.getElementById("pickedMaps");
+      const bannedMapsDiv = document.getElementById("bannedMaps");
 
       mapsDiv.innerHTML = "";
       logDiv.innerHTML = "";
+      pickedMapsDiv.innerHTML = "";
+      bannedMapsDiv.innerHTML = "";
+
+      roleInfo.innerText =
+        role === "A" ? `You are Captain of Team Ankhaa (${room.team_a})`
+        : role === "B" ? `You are Captain of Team Bagi (${room.team_b})`
+        : "You are Spectator";
 
       if (room.maps.length === 1) {
         turnDiv.innerText = "Veto complete";
@@ -320,18 +382,48 @@
         mapsDiv.appendChild(btn);
       });
 
+      const picked = room.actions.filter(a => a.type === "PICK");
+      const banned = room.actions.filter(a => a.type === "BAN");
+
+      if (!picked.length) {
+        pickedMapsDiv.innerHTML = '<div class="small-text">No picked maps yet</div>';
+      } else {
+        picked.forEach(item => {
+          const el = document.createElement("div");
+          el.className = "pill pick-pill";
+          el.innerText = `${item.map} - ${item.team}`;
+          pickedMapsDiv.appendChild(el);
+        });
+      }
+
+      if (!banned.length) {
+        bannedMapsDiv.innerHTML = '<div class="small-text">No banned maps yet</div>';
+      } else {
+        banned.forEach(item => {
+          const el = document.createElement("div");
+          el.className = "pill ban-pill";
+          el.innerText = `${item.map} - ${item.team}`;
+          bannedMapsDiv.appendChild(el);
+        });
+      }
+
       if (!room.actions.length) {
         logDiv.innerHTML = '<div class="small-text">No actions yet</div>';
       } else {
-        room.actions.forEach((item) => {
+        room.actions.forEach((item, index) => {
           const row = document.createElement("div");
           row.className = "log-item";
-          row.innerText = `${item.team} ${item.type} - ${item.map}`;
+          row.innerText = `${index + 1}. ${item.team} ${item.type} - ${item.map}`;
           logDiv.appendChild(row);
         });
       }
 
       if (room.maps.length === 1) {
+        const decider = document.createElement("div");
+        decider.className = "pill decider-pill";
+        decider.innerText = `DECIDER - ${room.maps[0]}`;
+        pickedMapsDiv.appendChild(decider);
+
         const row = document.createElement("div");
         row.className = "log-item";
         row.innerHTML = `<b>DECIDER - ${room.maps[0]}</b>`;
