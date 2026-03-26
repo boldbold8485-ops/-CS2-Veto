@@ -123,8 +123,7 @@ button:hover { background:#475569; }
 
 <script>
 const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk
-  ";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -146,15 +145,10 @@ function getCoinTossAction() {
 
 function getStartingTeamKey() {
   const toss = getCoinTossAction();
-
-  // Coin toss winner = toss.team
-  // Loser starts first BAN
   if (toss) {
     if (toss.team === room.team_a) return "B";
     if (toss.team === room.team_b) return "A";
   }
-
-  // coin toss хийгдээгүй бол default A
   return "A";
 }
 
@@ -177,8 +171,10 @@ function canPlayNow() {
 
 async function createRoom(){
   const code = genCode();
+
+  const roleSelect = document.getElementById("role");
   role = "A";
-  document.getElementById("role").value = "A";
+  roleSelect.value = "A";
 
   const teamAValue = document.getElementById("teamA").value.trim() || "Team Ankhaa";
   const teamBValue = document.getElementById("teamB").value.trim() || "Team Bagi";
@@ -292,11 +288,17 @@ function render(){
       "Turn: " + currentTurnName + " " + (seq[room.turn_index] || "");
   }
 
-  maps.innerHTML = "";
-  picked.innerHTML = "";
-  banned.innerHTML = "";
-  log.innerHTML = "";
-  coinResult.innerText = "Not rolled yet";
+  const mapsEl = document.getElementById("maps");
+  const pickedEl = document.getElementById("picked");
+  const bannedEl = document.getElementById("banned");
+  const logEl = document.getElementById("log");
+  const coinResultEl = document.getElementById("coinResult");
+
+  mapsEl.innerHTML = "";
+  pickedEl.innerHTML = "";
+  bannedEl.innerHTML = "";
+  logEl.innerHTML = "";
+  coinResultEl.innerText = "Not rolled yet";
 
   room.maps.forEach(m => {
     const btn = document.createElement("button");
@@ -308,31 +310,31 @@ function render(){
       btn.onclick = () => pick(m);
     }
 
-    maps.appendChild(btn);
+    mapsEl.appendChild(btn);
   });
 
   room.actions.forEach(a => {
     if (a.type === "COIN TOSS") {
       const loser = a.team === room.team_a ? room.team_b : room.team_a;
-      coinResult.innerText = a.team + " won the coin toss. " + loser + " starts first BAN.";
+      coinResultEl.innerText = a.team + " won the coin toss. " + loser + " starts first BAN.";
 
       const coinPill = document.createElement("div");
       coinPill.className = "pill coin";
       coinPill.innerText = a.team + " won coin toss";
-      picked.appendChild(coinPill);
+      pickedEl.appendChild(coinPill);
     }
 
     const div = document.createElement("div");
     div.innerText = a.team + " " + a.type + " " + a.map;
-    log.appendChild(div);
+    logEl.appendChild(div);
 
     if (a.type === "PICK" || a.type === "BAN") {
       const pill = document.createElement("div");
       pill.className = "pill " + (a.type === "PICK" ? "pick" : "ban");
       pill.innerText = a.map + " - " + a.team;
 
-      if (a.type === "PICK") picked.appendChild(pill);
-      else banned.appendChild(pill);
+      if (a.type === "PICK") pickedEl.appendChild(pill);
+      else bannedEl.appendChild(pill);
     }
   });
 
@@ -340,7 +342,7 @@ function render(){
     const d = document.createElement("div");
     d.className = "pill decider";
     d.innerText = "DECIDER " + room.maps[0];
-    picked.appendChild(d);
+    pickedEl.appendChild(d);
   }
 }
 
@@ -423,7 +425,7 @@ window.onload = async () => {
   const roleParam = p.get("role");
 
   if (roomParam) {
-    roomCodeInput.value = roomParam.toUpperCase();
+    document.getElementById("roomCodeInput").value = roomParam.toUpperCase();
 
     if (roleParam === "A" || roleParam === "B" || roleParam === "spectator") {
       document.getElementById("role").value = roleParam;
