@@ -1,477 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aduu CS2 Map Veto</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #081225;
-      color: white;
-      margin: 0;
-      padding: 24px;
-      text-align: center;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aduu CS2 Map Veto</title>
 
-    .box {
-      max-width: 950px;
-      margin: 0 auto;
-      background: #18263b;
-      padding: 24px;
-      border-radius: 18px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.28);
-    }
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    h1, h2, h3, h4, p {
-      margin-top: 0;
-    }
+<style>
+body { font-family: Arial; background:#081225; color:white; text-align:center; }
+.box { max-width:900px; margin:auto; background:#18263b; padding:20px; border-radius:16px; }
 
-    input, button, select {
-      padding: 10px 12px;
-      margin: 6px;
-      border-radius: 8px;
-      border: none;
-      font-size: 16px;
-    }
+input, button, select {
+  padding:10px; margin:5px; border-radius:8px; border:none;
+}
 
-    input, select {
-      min-width: 180px;
-    }
+button { background:#334155; color:white; cursor:pointer; }
+button:hover { background:#475569; }
 
-    button {
-      background: #334155;
-      color: white;
-      cursor: pointer;
-    }
+.disabled { opacity:0.4; pointer-events:none; }
 
-    button:hover {
-      background: #475569;
-    }
+.room-code { font-size:32px; font-weight:bold; letter-spacing:3px; }
 
-    .disabled {
-      opacity: 0.45;
-      pointer-events: none;
-    }
+.map-list { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:10px; }
 
-    .room-code-box,
-    .status-box,
-    .section-box,
-    .final-box {
-      background: #0f172a;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 16px;
-      margin: 16px 0;
-    }
+.section { background:#0f172a; padding:15px; border-radius:12px; margin-top:15px; }
 
-    .room-code {
-      font-size: 34px;
-      font-weight: 700;
-      letter-spacing: 4px;
-      margin: 8px 0 12px;
-      color: #f8fafc;
-    }
+.log { text-align:left; }
 
-    .small-text {
-      opacity: 0.8;
-      font-size: 14px;
-    }
-
-    .map-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .map-btn {
-      min-width: 110px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      text-align: left;
-      margin-top: 16px;
-    }
-
-    .log-box {
-      text-align: left;
-      background: #0f172a;
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .log-item {
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .log-item:last-child {
-      border-bottom: none;
-    }
-
-    .pill {
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 999px;
-      margin: 4px;
-      background: #24364f;
-      font-size: 14px;
-    }
-
-    .pick-pill {
-      background: #1d4ed8;
-    }
-
-    .ban-pill {
-      background: #7f1d1d;
-    }
-
-    .decider-pill {
-      background: #065f46;
-    }
-
-    .center {
-      text-align: center;
-    }
-
-    @media (max-width: 700px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-      .room-code {
-        font-size: 26px;
-        letter-spacing: 3px;
-      }
-    }
-  </style>
+.pill { padding:6px 10px; border-radius:20px; margin:3px; display:inline-block; }
+.pick { background:#1d4ed8; }
+.ban { background:#7f1d1d; }
+.decider { background:#065f46; }
+.coin { background:#854d0e; }
+</style>
 </head>
+
 <body>
-  <div class="box">
-    <h1>🐎 Aduu CS2 Map Veto</h1>
 
-    <div id="setup">
-      <div>
-        <input id="teamA" value="Team Ankhaa" placeholder="Team A name" />
-        <input id="teamB" value="Team Bagi" placeholder="Team B name" />
-      </div>
+<div class="box">
 
-      <div>
-        <select id="role">
-          <option value="A">Team Ankhaa</option>
-          <option value="B">Team Bagi</option>
-          <option value="spectator">Spectator</option>
-        </select>
-      </div>
+<h2>🐎 Aduu CS2 Map Veto</h2>
 
-      <div>
-        <button onclick="createRoom()">Create Room</button>
-      </div>
+<div id="setup">
+<input id="teamA" value="Team Ankhaa">
+<input id="teamB" value="Team Bagi"><br>
 
-      <div style="margin-top: 18px;">
-        <input id="roomCodeInput" placeholder="Enter Room Code" />
-        <button onclick="joinRoom()">Join Room</button>
-      </div>
-    </div>
+<select id="role">
+<option value="A">А багийн ахлагч</option>
+<option value="B">Б багийн ахлагч</option>
+<option value="spectator">Spectator</option>
+</select><br>
 
-    <div id="game" style="display:none;">
-      <h2 id="title"></h2>
+<button onclick="createRoom()">Create Room</button><br>
 
-      <div class="room-code-box center">
-        <div class="small-text">Share this code with the other captain</div>
-        <div class="room-code" id="roomCodeText">----</div>
-        <button onclick="copyRoomCode()">Copy Code</button>
-      </div>
+<input id="roomCodeInput" placeholder="Room Code">
+<button onclick="joinRoom()">Join Room</button>
+</div>
 
-      <div class="status-box center">
-        <h3 id="turn"></h3>
-        <div class="small-text" id="roleInfo"></div>
-      </div>
+<div id="game" style="display:none;">
 
-      <div id="finalMapBox" class="final-box center" style="display:none;">
-        <h3>Final Decider Map</h3>
-        <div id="finalMapText" style="font-size: 30px; font-weight: 700;"></div>
-      </div>
+<h3 id="title"></h3>
 
-      <div class="section-box">
-        <h3 class="center">Available Maps</h3>
-        <div class="map-list" id="maps"></div>
-      </div>
+<div class="section">
+<div class="room-code" id="roomCodeText"></div>
+<button onclick="copyCode()">Copy Code</button>
+</div>
 
-      <div class="grid">
-        <div class="section-box">
-          <h3>Picked Maps</h3>
-          <div id="pickedMaps"></div>
-        </div>
+<div class="section">
+<h4>Links</h4>
+<input id="linkA" style="width:80%" readonly><br>
+<button onclick="copyA()">Copy А багийн ахлагч Link</button><br>
 
-        <div class="section-box">
-          <h3>Banned Maps</h3>
-          <div id="bannedMaps"></div>
-        </div>
-      </div>
+<input id="linkB" style="width:80%" readonly><br>
+<button onclick="copyB()">Copy Б багийн ахлагч Link</button>
+</div>
 
-      <div class="log-box">
-        <h3>Veto Log</h3>
-        <div id="log"></div>
-      </div>
-    </div>
-  </div>
+<div class="section">
+<h4>Coin Toss</h4>
+<div id="coinResult">Not rolled yet</div>
+<button onclick="runCoinToss()">Roll Coin Toss</button>
+</div>
 
-  <script>
-    const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
+<h3 id="turn"></h3>
 
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<div id="maps" class="map-list"></div>
 
-    const mapsDefault = ["Mirage", "Inferno", "Nuke", "Ancient", "Anubis", "Overpass", "Dust2"];
-    const actionSequence = ["BAN", "BAN", "PICK", "PICK", "BAN", "BAN"];
+<div class="section">
+<h4>Picked</h4>
+<div id="picked"></div>
 
-    let room = null;
-    let role = null;
-    let channel = null;
+<h4>Banned</h4>
+<div id="banned"></div>
+</div>
 
-    function genCode() {
-      return Math.random().toString(36).substring(2, 6).toUpperCase();
+<div class="section log">
+<h4>Log</h4>
+<div id="log"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
+const SUPABASE_KEY = "YOUR_ANON_PUBLIC_KEY";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Dust2"];
+const seq = ["BAN","BAN","PICK","PICK","BAN","BAN"];
+
+let room = null;
+let role = null;
+let channel = null;
+
+function genCode(){ 
+  return Math.random().toString(36).substring(2,6).toUpperCase(); 
+}
+
+async function createRoom(){
+  const code = genCode();
+  role = document.getElementById("role").value;
+
+  const {error} = await supabaseClient.from("rooms").insert([{
+    room_code: code,
+    team_a: teamA.value,
+    team_b: teamB.value,
+    maps: mapsDefault,
+    actions: [],
+    turn_index: 0
+  }]);
+
+  if(error){ 
+    alert("error"); 
+    console.log(error); 
+    return; 
+  }
+
+  roomCodeInput.value = code;
+  loadRoom(code);
+}
+
+async function joinRoom(){
+  role = document.getElementById("role").value;
+  loadRoom(roomCodeInput.value);
+}
+
+async function loadRoom(code){
+  const {data, error} = await supabaseClient
+    .from("rooms")
+    .select("*")
+    .eq("room_code", code.toUpperCase())
+    .single();
+
+  if(error || !data){
+    alert("Room not found");
+    console.log(error);
+    return;
+  }
+
+  room = normalizeRoom(data);
+
+  setup.style.display="none";
+  game.style.display="block";
+
+  render();
+
+  if(channel){
+    await supabaseClient.removeChannel(channel);
+  }
+
+  channel = supabaseClient
+    .channel("room-" + room.room_code)
+    .on(
+      "postgres_changes",
+      {
+        event:"UPDATE",
+        schema:"public",
+        table:"rooms",
+        filter:`room_code=eq.${room.room_code}`
+      },
+      payload => {
+        room = normalizeRoom(payload.new);
+        render();
+      }
+    )
+    .subscribe();
+}
+
+function normalizeRoom(data){
+  return {
+    ...data,
+    maps: Array.isArray(data.maps) ? data.maps : [],
+    actions: Array.isArray(data.actions) ? data.actions : []
+  };
+}
+
+function render(){
+
+  title.innerText = room.team_a + " vs " + room.team_b;
+  roomCodeText.innerText = room.room_code;
+
+  const base = location.origin + location.pathname;
+
+  linkA.value = base + "?room=" + room.room_code + "&role=A";
+  linkB.value = base + "?room=" + room.room_code + "&role=B";
+
+  const turnTeam = room.turn_index % 2 === 0 ? "A":"B";
+  turn.innerText = room.maps.length === 1
+    ? "Veto complete"
+    : "Turn: " + (turnTeam==="A" ? room.team_a : room.team_b) + " " + (seq[room.turn_index] || "");
+
+  maps.innerHTML="";
+  picked.innerHTML="";
+  banned.innerHTML="";
+  log.innerHTML="";
+  coinResult.innerText = "Not rolled yet";
+
+  room.maps.forEach(m=>{
+    const btn = document.createElement("button");
+    btn.innerText = m;
+
+    if(role!==turnTeam || room.maps.length===1) btn.classList.add("disabled");
+    else btn.onclick = ()=>pick(m);
+
+    maps.appendChild(btn);
+  });
+
+  room.actions.forEach(a=>{
+    if(a.type === "COIN TOSS"){
+      coinResult.innerText = a.team + " won the coin toss";
+
+      const coinPill = document.createElement("div");
+      coinPill.className = "pill coin";
+      coinPill.innerText = a.team + " won coin toss";
+      picked.appendChild(coinPill);
     }
 
-    async function createRoom() {
-      const code = genCode();
-      role = document.getElementById("role").value;
+    const div=document.createElement("div");
+    div.innerText=a.team+" "+a.type+" "+a.map;
+    log.appendChild(div);
 
-      const teamA = document.getElementById("teamA").value || "Team Ankhaa";
-      const teamB = document.getElementById("teamB").value || "Team Bagi";
+    if(a.type === "PICK" || a.type === "BAN"){
+      const pill=document.createElement("div");
+      pill.className="pill "+(a.type==="PICK"?"pick":"ban");
+      pill.innerText=a.map + " - " + a.team;
 
-      const { error } = await supabaseClient.from("rooms").insert([{
-        room_code: code,
-        team_a: teamA,
-        team_b: teamB,
-        maps: mapsDefault,
-        actions: [],
-        turn_index: 0,
-        status: "live"
-      }]);
+      if(a.type==="PICK") picked.appendChild(pill);
+      else banned.appendChild(pill);
+    }
+  });
 
-      if (error) {
-        alert("Room create error");
-        console.error(error);
-        return;
-      }
+  if(room.maps.length===1){
+    const d=document.createElement("div");
+    d.className="pill decider";
+    d.innerText="DECIDER " + room.maps[0];
+    picked.appendChild(d);
+  }
+}
 
-      document.getElementById("roomCodeInput").value = code;
-      await loadRoom(code);
+async function pick(map){
+  const newMaps = room.maps.filter(m=>m!==map);
+  const newActions = [...room.actions,{
+    team: (room.turn_index%2===0 ? room.team_a : room.team_b),
+    type: seq[room.turn_index],
+    map
+  }];
+
+  const {error} = await supabaseClient.from("rooms").update({
+    maps:newMaps,
+    actions:newActions,
+    turn_index:room.turn_index+1
+  }).eq("id",room.id);
+
+  if(error){
+    alert("Update error");
+    console.log(error);
+  }
+}
+
+async function runCoinToss(){
+  if(!room) return;
+
+  if(room.actions.some(a => a.type === "COIN TOSS")){
+    alert("Coin toss already done");
+    return;
+  }
+
+  const winner = Math.random() < 0.5 ? room.team_a : room.team_b;
+
+  const newActions = [...room.actions, {
+    team: winner,
+    type: "COIN TOSS",
+    map: "-"
+  }];
+
+  const {error} = await supabaseClient.from("rooms").update({
+    actions: newActions
+  }).eq("id", room.id);
+
+  if(error){
+    alert("Coin toss error");
+    console.log(error);
+  }
+}
+
+async function copyCode(){ 
+  try {
+    await navigator.clipboard.writeText(room.room_code);
+    alert("Code copied");
+  } catch {
+    alert("Copy failed");
+  }
+}
+
+async function copyA(){ 
+  try {
+    await navigator.clipboard.writeText(linkA.value);
+    alert("Captain A link copied");
+  } catch {
+    alert("Copy failed");
+  }
+}
+
+async function copyB(){ 
+  try {
+    await navigator.clipboard.writeText(linkB.value);
+    alert("Captain B link copied");
+  } catch {
+    alert("Copy failed");
+  }
+}
+
+window.onload = async ()=>{
+  const p = new URLSearchParams(location.search);
+  const roomParam = p.get("room");
+  const roleParam = p.get("role");
+
+  if(roomParam){
+    roomCodeInput.value = roomParam.toUpperCase();
+
+    if(roleParam === "A" || roleParam === "B" || roleParam === "spectator"){
+      document.getElementById("role").value = roleParam;
+      role = roleParam;
     }
 
-    async function joinRoom() {
-      const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
-      role = document.getElementById("role").value;
+    await joinRoom();
+  }
+};
 
-      if (!code) {
-        alert("Room code оруулна уу");
-        return;
-      }
+</script>
 
-      await loadRoom(code);
-    }
-
-    async function loadRoom(code) {
-      const { data, error } = await supabaseClient
-        .from("rooms")
-        .select("*")
-        .eq("room_code", code)
-        .single();
-
-      if (error || !data) {
-        alert("Room not found");
-        console.error(error);
-        return;
-      }
-
-      room = normalizeRoom(data);
-
-      document.getElementById("setup").style.display = "none";
-      document.getElementById("game").style.display = "block";
-
-      render();
-
-      if (channel) {
-        await supabaseClient.removeChannel(channel);
-      }
-
-      channel = supabaseClient
-        .channel("room-" + code)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "rooms",
-            filter: `room_code=eq.${code}`
-          },
-          (payload) => {
-            if (!payload.new) return;
-            room = normalizeRoom(payload.new);
-            render();
-          }
-        )
-        .subscribe();
-    }
-
-    function normalizeRoom(data) {
-      return {
-        ...data,
-        maps: Array.isArray(data.maps) ? data.maps : [],
-        actions: Array.isArray(data.actions) ? data.actions : []
-      };
-    }
-
-    function render() {
-      document.getElementById("title").innerText = `${room.team_a} vs ${room.team_b}`;
-      document.getElementById("roomCodeText").innerText = room.room_code;
-
-      const turnTeam = room.turn_index % 2 === 0 ? "A" : "B";
-      const turnName = turnTeam === "A" ? room.team_a : room.team_b;
-      const turnAction = actionSequence[room.turn_index] || "DECIDER";
-
-      const mapsDiv = document.getElementById("maps");
-      const logDiv = document.getElementById("log");
-      const finalMapBox = document.getElementById("finalMapBox");
-      const finalMapText = document.getElementById("finalMapText");
-      const turnDiv = document.getElementById("turn");
-      const roleInfo = document.getElementById("roleInfo");
-      const pickedMapsDiv = document.getElementById("pickedMaps");
-      const bannedMapsDiv = document.getElementById("bannedMaps");
-
-      mapsDiv.innerHTML = "";
-      logDiv.innerHTML = "";
-      pickedMapsDiv.innerHTML = "";
-      bannedMapsDiv.innerHTML = "";
-
-      roleInfo.innerText =
-        role === "A" ? `You are Captain of Team Ankhaa (${room.team_a})`
-        : role === "B" ? `You are Captain of Team Bagi (${room.team_b})`
-        : "You are Spectator";
-
-      if (room.maps.length === 1) {
-        turnDiv.innerText = "Veto complete";
-        finalMapBox.style.display = "block";
-        finalMapText.innerText = room.maps[0];
-      } else {
-        finalMapBox.style.display = "none";
-        turnDiv.innerText = `Turn: ${turnName} ${turnAction}`;
-      }
-
-      room.maps.forEach((map) => {
-        const btn = document.createElement("button");
-        btn.className = "map-btn";
-        btn.innerText = map;
-
-        const canPlay = role === turnTeam && room.maps.length > 1;
-        if (!canPlay) {
-          btn.classList.add("disabled");
-        } else {
-          btn.onclick = () => pickMap(map);
-        }
-
-        mapsDiv.appendChild(btn);
-      });
-
-      const picked = room.actions.filter(a => a.type === "PICK");
-      const banned = room.actions.filter(a => a.type === "BAN");
-
-      if (!picked.length) {
-        pickedMapsDiv.innerHTML = '<div class="small-text">No picked maps yet</div>';
-      } else {
-        picked.forEach(item => {
-          const el = document.createElement("div");
-          el.className = "pill pick-pill";
-          el.innerText = `${item.map} - ${item.team}`;
-          pickedMapsDiv.appendChild(el);
-        });
-      }
-
-      if (!banned.length) {
-        bannedMapsDiv.innerHTML = '<div class="small-text">No banned maps yet</div>';
-      } else {
-        banned.forEach(item => {
-          const el = document.createElement("div");
-          el.className = "pill ban-pill";
-          el.innerText = `${item.map} - ${item.team}`;
-          bannedMapsDiv.appendChild(el);
-        });
-      }
-
-      if (!room.actions.length) {
-        logDiv.innerHTML = '<div class="small-text">No actions yet</div>';
-      } else {
-        room.actions.forEach((item, index) => {
-          const row = document.createElement("div");
-          row.className = "log-item";
-          row.innerText = `${index + 1}. ${item.team} ${item.type} - ${item.map}`;
-          logDiv.appendChild(row);
-        });
-      }
-
-      if (room.maps.length === 1) {
-        const decider = document.createElement("div");
-        decider.className = "pill decider-pill";
-        decider.innerText = `DECIDER - ${room.maps[0]}`;
-        pickedMapsDiv.appendChild(decider);
-
-        const row = document.createElement("div");
-        row.className = "log-item";
-        row.innerHTML = `<b>DECIDER - ${room.maps[0]}</b>`;
-        logDiv.appendChild(row);
-      }
-    }
-
-    async function pickMap(map) {
-      if (!room || room.maps.length <= 1) return;
-
-      const currentTurn = room.turn_index;
-      const teamKey = currentTurn % 2 === 0 ? "A" : "B";
-      const teamName = teamKey === "A" ? room.team_a : room.team_b;
-      const actionType = actionSequence[currentTurn] || "BAN";
-
-      const newMaps = room.maps.filter((m) => m !== map);
-      const newActions = [...room.actions, {
-        team: teamName,
-        type: actionType,
-        map: map
-      }];
-
-      const { error } = await supabaseClient
-        .from("rooms")
-        .update({
-          maps: newMaps,
-          actions: newActions,
-          turn_index: currentTurn + 1
-        })
-        .eq("id", room.id);
-
-      if (error) {
-        alert("Update error");
-        console.error(error);
-      }
-    }
-
-    async function copyRoomCode() {
-      if (!room?.room_code) return;
-
-      try {
-        await navigator.clipboard.writeText(room.room_code);
-        alert("Room code copied");
-      } catch (error) {
-        console.error(error);
-        alert("Copy failed");
-      }
-    }
-  </script>
 </body>
 </html>
