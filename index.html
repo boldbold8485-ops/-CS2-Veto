@@ -127,7 +127,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Dust2"];
+const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
 const seq = ["BAN","BAN","PICK","PICK","BAN","BAN"];
 
 let room = null;
@@ -196,6 +196,8 @@ async function createRoom(){
 
   document.getElementById("roomCodeInput").value = code;
   await loadRoom(code);
+
+  await addJoinLogIfNeeded();
 }
 
 async function joinRoom(){
@@ -208,6 +210,34 @@ async function joinRoom(){
   }
 
   await loadRoom(code);
+  await addJoinLogIfNeeded();
+}
+
+async function addJoinLogIfNeeded() {
+  if (!room || !role) return;
+
+  const alreadyJoined = room.actions.some(a => a.type === "JOIN" && a.role === role);
+  if (alreadyJoined) return;
+
+  const teamName =
+    role === "A" ? room.team_a :
+    role === "B" ? room.team_b :
+    "Spectator";
+
+  const newActions = [...room.actions, {
+    team: teamName,
+    type: "JOIN",
+    role: role,
+    map: "-"
+  }];
+
+  const { error } = await supabaseClient.from("rooms").update({
+    actions: newActions
+  }).eq("id", room.id);
+
+  if (error) {
+    console.log(error);
+  }
 }
 
 async function loadRoom(code){
@@ -263,8 +293,12 @@ function normalizeRoom(data){
 function render(){
   document.getElementById("title").innerText = room.team_a + " vs " + room.team_b;
   document.getElementById("roomCodeText").innerText = room.room_code;
-  document.getElementById("teamAName").innerText = room.team_a;
-  document.getElementById("teamBName").innerText = room.team_b;
+
+  const joinedA = room.actions.some(a => a.type === "JOIN" && a.role === "A");
+  const joinedB = room.actions.some(a => a.type === "JOIN" && a.role === "B");
+
+  document.getElementById("teamAName").innerText = room.team_a + (joinedA ? " ✅" : " ❌");
+  document.getElementById("teamBName").innerText = room.team_b + (joinedB ? " ✅" : " ❌");
 
   const base = location.origin + location.pathname;
 
@@ -325,7 +359,11 @@ function render(){
     }
 
     const div = document.createElement("div");
-    div.innerText = a.team + " " + a.type + " " + a.map;
+    if (a.type === "JOIN") {
+      div.innerText = a.team + " joined the room";
+    } else {
+      div.innerText = a.team + " " + a.type + " " + a.map;
+    }
     logEl.appendChild(div);
 
     if (a.type === "PICK" || a.type === "BAN") {
