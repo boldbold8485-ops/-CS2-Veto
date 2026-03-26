@@ -1,206 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aduu CS2 Map Veto</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aduu CS2 Map Veto</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #081225;
+      color: white;
+      margin: 0;
+      padding: 24px;
+      text-align: center;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    .box {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #1b2a41;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
 
-<style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
-  text-align: center;
-}
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
 
-.box {
-  max-width: 600px;
-  margin: auto;
-  background: #1e293b;
-  padding: 20px;
-  border-radius: 12px;
-}
+    input, button, select {
+      padding: 10px 12px;
+      margin: 6px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
 
-button {
-  padding: 10px;
-  margin: 5px;
-  border-radius: 8px;
-  border: none;
-  background: #334155;
-  color: white;
-  cursor: pointer;
-}
+    input, select {
+      min-width: 180px;
+    }
 
-button:hover {
-  background: #475569;
-}
+    button {
+      background: #334155;
+      color: white;
+      cursor: pointer;
+    }
 
-.disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-</style>
+    button:hover {
+      background: #475569;
+    }
+
+    .disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .map-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .map-btn {
+      min-width: 110px;
+    }
+
+    .room-code-box {
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 18px 0;
+    }
+
+    .room-code {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      margin: 8px 0 12px;
+      color: #f8fafc;
+    }
+
+    .small-text {
+      opacity: 0.8;
+      font-size: 14px;
+    }
+
+    .log-box {
+      text-align: left;
+      margin-top: 20px;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .log-item {
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .final-box {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .turn-box {
+      margin: 14px 0 10px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="box">
+    <h1>🐎 Aduu CS2 Map Veto</h1>
 
-<div class="box">
+    <div id="setup">
+      <div>
+        <input id="teamA" value="Team Ankhaa" placeholder="Team A name" />
+        <input id="teamB" value="Team Bagi" placeholder="Team B name" />
+      </div>
 
-<h2>🐎 Aduu CS2 Map Veto</h2>
+      <div>
+        <select id="role">
+          <option value="A">Captain A</option>
+          <option value="B">Captain B</option>
+          <option value="spectator">Spectator</option>
+        </select>
+      </div>
 
-<div id="setup">
-<input id="teamA" value="Team Ankhaa">
-<input id="teamB" value="Team Bagi">
+      <div>
+        <button onclick="createRoom()">Create Room</button>
+      </div>
 
-<br><br>
+      <div style="margin-top: 18px;">
+        <input id="roomCodeInput" placeholder="Enter Room Code" />
+        <button onclick="joinRoom()">Join Room</button>
+      </div>
+    </div>
 
-<select id="role">
-<option value="A">Captain A</option>
-<option value="B">Captain B</option>
-</select>
+    <div id="game" style="display:none;">
+      <h2 id="title"></h2>
 
-<br><br>
+      <div class="room-code-box">
+        <div class="small-text">Share this code with the other captain</div>
+        <div class="room-code" id="roomCodeText">----</div>
+        <button onclick="copyRoomCode()">Copy Code</button>
+      </div>
 
-<button onclick="createRoom()">Create Room</button>
+      <div class="turn-box" id="turn"></div>
 
-<br><br>
+      <div id="finalMapBox" class="final-box" style="display:none;">
+        <h3>Final Decider Map</h3>
+        <div id="finalMapText" style="font-size: 28px; font-weight: 700;"></div>
+      </div>
 
-<input id="roomCodeInput" placeholder="Room Code">
-<button onclick="joinRoom()">Join Room</button>
-</div>
+      <div class="map-list" id="maps"></div>
 
-<div id="game" style="display:none;">
-<h3 id="title"></h3>
-<p id="turn"></p>
-<div id="maps"></div>
-</div>
+      <div class="log-box">
+        <h3>Veto Log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
 
-</div>
+  <script>
+    const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
 
-<script>
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 🔥 ЭНД СОЛИНО
-const SUPABASE_URL = "https://xlpxcmycpltniajartya.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscHhjbXljcGx0bmlhamFydHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDE5MzUsImV4cCI6MjA5MDA3NzkzNX0.Cjc1Pv82fbNfVVatThYOUNcx5OXdiapIkB21DL29URk";
+    const mapsDefault = ["Mirage", "Inferno", "Nuke", "Ancient", "Anubis", "Overpass", "Dust2"];
+    const actionSequence = ["BAN", "BAN", "PICK", "PICK", "BAN", "BAN"];
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let room = null;
+    let role = null;
+    let channel = null;
 
-const mapsDefault = ["Mirage","Inferno","Nuke","Ancient","Anubis","Overpass","Vertigo"];
+    function genCode() {
+      return Math.random().toString(36).substring(2, 6).toUpperCase();
+    }
 
-let room = null;
-let role = null;
-let channel = null;
+    async function createRoom() {
+      const code = genCode();
+      role = document.getElementById("role").value;
 
-function genCode() {
-  return Math.random().toString(36).substring(2,6).toUpperCase();
-}
+      const teamA = document.getElementById("teamA").value || "Team Ankhaa";
+      const teamB = document.getElementById("teamB").value || "Team Bagi";
 
-// CREATE ROOM
-async function createRoom() {
+      const { error } = await supabaseClient.from("rooms").insert([{
+        room_code: code,
+        team_a: teamA,
+        team_b: teamB,
+        maps: mapsDefault,
+        actions: [],
+        turn_index: 0,
+        status: "live"
+      }]);
 
-  const code = genCode();
+      if (error) {
+        alert("Room create error");
+        console.error(error);
+        return;
+      }
 
-  role = document.getElementById("role").value;
+      document.getElementById("roomCodeInput").value = code;
+      await loadRoom(code);
+    }
 
-  const { error } = await supabaseClient.from("rooms").insert([{
-    room_code: code,
-    team_a: document.getElementById("teamA").value,
-    team_b: document.getElementById("teamB").value,
-    maps: mapsDefault,
-    actions: [],
-    turn_index: 0
-  }]);
+    async function joinRoom() {
+      const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+      role = document.getElementById("role").value;
 
-  if(error){
-    alert("error");
-    console.log(error);
-    return;
-  }
+      if (!code) {
+        alert("Room code оруулна уу");
+        return;
+      }
 
-  document.getElementById("roomCodeInput").value = code;
+      await loadRoom(code);
+    }
 
-  loadRoom(code);
-}
+    async function loadRoom(code) {
+      const { data, error } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .eq("room_code", code)
+        .single();
 
-// JOIN
-async function joinRoom(){
-  const code = document.getElementById("roomCodeInput").value;
-  role = document.getElementById("role").value;
-  loadRoom(code);
-}
+      if (error || !data) {
+        alert("Room not found");
+        console.error(error);
+        return;
+      }
 
-// LOAD ROOM
-async function loadRoom(code){
+      room = normalizeRoom(data);
 
-  const { data } = await supabaseClient
-  .from("rooms")
-  .select("*")
-  .eq("room_code", code)
-  .single();
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("game").style.display = "block";
 
-  room = data;
-
-  document.getElementById("setup").style.display = "none";
-  document.getElementById("game").style.display = "block";
-
-  render();
-
-  channel = supabaseClient
-  .channel("room")
-  .on("postgres_changes",
-    { event:"UPDATE", schema:"public", table:"rooms" },
-    payload => {
-      room = payload.new;
       render();
-    }
-  ).subscribe();
-}
 
-// RENDER
-function render(){
+      if (channel) {
+        await supabaseClient.removeChannel(channel);
+      }
 
-  document.getElementById("title").innerText =
-    room.team_a + " vs " + room.team_b;
-
-  const turnTeam = room.turn_index % 2 === 0 ? "A" : "B";
-
-  document.getElementById("turn").innerText =
-    "Turn: " + (turnTeam === "A" ? room.team_a : room.team_b);
-
-  const div = document.getElementById("maps");
-  div.innerHTML = "";
-
-  room.maps.forEach(m => {
-
-    const btn = document.createElement("button");
-    btn.innerText = m;
-
-    if(role !== turnTeam){
-      btn.classList.add("disabled");
-    } else {
-      btn.onclick = () => pick(m);
+      channel = supabaseClient
+        .channel("room-" + code)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "rooms",
+            filter: `room_code=eq.${code}`
+          },
+          (payload) => {
+            room = normalizeRoom(payload.new);
+            render();
+          }
+        )
+        .subscribe();
     }
 
-    div.appendChild(btn);
-  });
+    function normalizeRoom(data) {
+      return {
+        ...data,
+        maps: Array.isArray(data.maps) ? data.maps : [],
+        actions: Array.isArray(data.actions) ? data.actions : []
+      };
+    }
 
-}
+    function render() {
+      document.getElementById("title").innerText = `${room.team_a} vs ${room.team_b}`;
+      document.getElementById("roomCodeText").innerText = room.room_code;
 
-// PICK
-async function pick(map){
+      const turnTeam = room.turn_index % 2 === 0 ? "A" : "B";
+      const turnName = turnTeam === "A" ? room.team_a : room.team_b;
+      const turnAction = actionSequence[room.turn_index] || "DECIDER";
 
-  const newMaps = room.maps.filter(m => m !== map);
+      const mapsDiv = document.getElementById("maps");
+      const logDiv = document.getElementById("log");
+      const finalMapBox = document.getElementById("finalMapBox");
+      const finalMapText = document.getElementById("finalMapText");
+      const turnDiv = document.getElementById("turn");
 
-  await supabaseClient.from("rooms").update({
-    maps: newMaps,
-    turn_index: room.turn_index + 1
-  }).eq("id", room.id);
+      mapsDiv.innerHTML = "";
+      logDiv.innerHTML = "";
 
-}
+      if (room.maps.length === 1) {
+        turnDiv.innerText = "Veto complete";
+        finalMapBox.style.display = "block";
+        finalMapText.innerText = room.maps[0];
+      } else {
+        finalMapBox.style.display = "none";
+        turnDiv.innerText = `Turn: ${turnName} ${turnAction}`;
+      }
 
-</script>
+      room.maps.forEach((map) => {
+        const btn = document.createElement("button");
+        btn.className = "map-btn";
+        btn.innerText = map;
 
+        const canPlay = role === turnTeam && room.maps.length > 1;
+        if (!canPlay) {
+          btn.classList.add("disabled");
+        } else {
+          btn.onclick = () => pickMap(map);
+        }
+
+        mapsDiv.appendChild(btn);
+      });
+
+      if (!room.actions.length) {
+        logDiv.innerHTML = '<div class="small-text">No actions yet</div>';
+      } else {
+        room.actions.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "log-item";
+          row.innerText = `${item.team} ${item.type} - ${item.map}`;
+          logDiv.appendChild(row);
+        });
+      }
+
+      if (room.maps.length === 1) {
+        const row = document.createElement("div");
+        row.className = "log-item";
+        row.innerHTML = `<b>DECIDER - ${room.maps[0]}</b>`;
+        logDiv.appendChild(row);
+      }
+    }
+
+    async function pickMap(map) {
+      if (!room || room.maps.length <= 1) return;
+
+      const currentTurn = room.turn_index;
+      const teamKey = currentTurn % 2 === 0 ? "A" : "B";
+      const teamName = teamKey === "A" ? room.team_a : room.team_b;
+      const actionType = actionSequence[currentTurn] || "BAN";
+
+      const newMaps = room.maps.filter((m) => m !== map);
+      const newActions = [...room.actions, {
+        team: teamName,
+        type: actionType,
+        map: map
+      }];
+
+      const { error } = await supabaseClient
+        .from("rooms")
+        .update({
+          maps: newMaps,
+          actions: newActions,
+          turn_index: currentTurn + 1
+        })
+        .eq("id", room.id);
+
+      if (error) {
+        alert("Update error");
+        console.error(error);
+      }
+    }
+
+    async function copyRoomCode() {
+      if (!room?.room_code) return;
+
+      try {
+        await navigator.clipboard.writeText(room.room_code);
+        alert("Room code copied");
+      } catch (error) {
+        console.error(error);
+        alert("Copy failed");
+      }
+    }
+  </script>
 </body>
 </html>
