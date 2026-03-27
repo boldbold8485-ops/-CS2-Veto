@@ -66,6 +66,7 @@
           <span id="teamAName" class="locked-name"></span>
           <span id="teamBName" class="locked-name"></span>
         </div>
+        <div id="roleInfo" class="muted" style="margin-top:10px;"></div>
       </div>
 
       <div class="section">
@@ -158,6 +159,14 @@
       return Math.random().toString(36).substring(2,6).toUpperCase();
     }
 
+    function normalizeRoom(data) {
+      return {
+        ...data,
+        maps: Array.isArray(data.maps) ? data.maps : [],
+        actions: Array.isArray(data.actions) ? data.actions : []
+      };
+    }
+
     function getCoinTossAction() {
       if (!room || !Array.isArray(room.actions)) return null;
       return room.actions.find(a => a.type === "COIN TOSS") || null;
@@ -165,16 +174,18 @@
 
     function getStartingTeamKey() {
       const toss = getCoinTossAction();
-      if (toss) {
-        if (toss.team === room.team_a) return "B";
-        if (toss.team === room.team_b) return "A";
-      }
+      if (!toss) return "A";
+
+      if (toss.team === room.team_a) return "B"; // loser starts
+      if (toss.team === room.team_b) return "A";
       return "A";
     }
 
     function getCurrentTurnTeamKey() {
       const startTeam = getStartingTeamKey();
-      return room.turn_index % 2 === 0 ? startTeam : (startTeam === "A" ? "B" : "A");
+      return room.turn_index % 2 === 0
+        ? startTeam
+        : (startTeam === "A" ? "B" : "A");
     }
 
     function canPlayNow() {
@@ -185,12 +196,17 @@
       return role === getCurrentTurnTeamKey();
     }
 
-    function normalizeRoom(data) {
-      return {
-        ...data,
-        maps: Array.isArray(data.maps) ? data.maps : [],
-        actions: Array.isArray(data.actions) ? data.actions : []
-      };
+    async function refetchRoom() {
+      if (!room?.room_code) return;
+      const { data, error } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .eq("room_code", room.room_code)
+        .single();
+
+      if (!error && data) {
+        room = normalizeRoom(data);
+      }
     }
 
     async function createRoom() {
@@ -228,6 +244,7 @@
         role = document.getElementById("role").value;
         const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
         if (!code) throw new Error("Room code оруулна уу");
+
         await loadRoom(code);
         await addJoinLogIfNeeded();
       } catch (err) {
@@ -256,9 +273,15 @@
       if (!room || !role) return;
 
       const alreadyJoined = room.actions.some(a => a.type === "JOIN" && a.role === role);
-      if (alreadyJoined) return;
+      if (alreadyJoined) {
+        render();
+        return;
+      }
 
-      const teamName = role === "A" ? room.team_a : role === "B" ? room.team_b : "Spectator";
+      const teamName =
+        role === "A" ? room.team_a :
+        role === "B" ? room.team_b :
+        "Spectator";
 
       const newActions = [...room.actions, {
         team: teamName,
@@ -267,11 +290,16 @@
         map: "-"
       }];
 
-      const { error } = await supabaseClient.from("rooms").update({
-        actions: newActions
-      }).eq("id", room.id);
+      const { error } = await supabaseClient
+        .from("rooms")
+        .update({ actions: newActions })
+        .eq("id", room.id);
 
       if (error) throw error;
+
+      room.actions = newActions;
+      await refetchRoom();
+      render();
     }
 
     async function loadRoom(code) {
@@ -322,11 +350,15 @@
       document.getElementById("teamAName").innerText = room.team_a + (joinedA ? " ✅" : " ❌");
       document.getElementById("teamBName").innerText = room.team_b + (joinedB ? " ✅" : " ❌");
 
+      document.getElementById("roleInfo").innerText =
+        role === "A" ? "You are Captain A"
+        : role === "B" ? "You are Captain B"
+        : "You are Spectator";
+
       const base = location.origin + location.pathname;
       let opponentRole = "B";
       if (role === "B") opponentRole = "A";
       if (role === "spectator") opponentRole = "B";
-
       document.getElementById("opponentLink").value = `${base}?room=${room.room_code}&role=${opponentRole}`;
 
       const toss = getCoinTossAction();
@@ -338,7 +370,8 @@
       } else if (room.maps.length === 1) {
         document.getElementById("turn").innerText = "Veto complete";
       } else {
-        document.getElementById("turn").innerText = "Turn: " + currentTurnName + " " + (seq[room.turn_index] || "");
+        document.getElementById("turn").innerText =
+          "Turn: " + currentTurnName + " " + (seq[room.turn_index] || "");
       }
 
       const mapsEl = document.getElementById("maps");
@@ -372,16 +405,14 @@
         if (a.type === "COIN TOSS") {
           const loser = a.team === room.team_a ? room.team_b : room.team_a;
           coinResultEl.innerText = a.team + " won the coin toss. " + loser + " starts first BAN.";
-
-          const coinPill = document.createElement("div");
-          coinPill.className = "pill coin";
-          coinPill.innerText = a.team + " won coin toss";
-          pickedEl.appendChild(coinPill);
         }
 
         const row = document.createElement("div");
         row.className = "log-row";
-        row.innerText = a.type === "JOIN" ? (a.team + " joined the room") : (a.team + " " + a.type + " " + a.map);
+        row.innerText =
+          a.type === "JOIN"
+            ? (a.team + " joined the room")
+            : (a.team + " " + a.type + " " + a.map);
         logEl.appendChild(row);
 
         if (a.type === "JOIN" || a.type === "COIN TOSS") return;
@@ -417,13 +448,21 @@
           map
         }];
 
-        const { error } = await supabaseClient.from("rooms").update({
-          maps: newMaps,
-          actions: newActions,
-          turn_index: room.turn_index + 1
-        }).eq("id", room.id);
+        const { error } = await supabaseClient
+          .from("rooms")
+          .update({
+            maps: newMaps,
+            actions: newActions,
+            turn_index: room.turn_index + 1
+          })
+          .eq("id", room.id);
 
         if (error) throw error;
+
+        room.maps = newMaps;
+        room.actions = newActions;
+        room.turn_index = room.turn_index + 1;
+        render();
       } catch (err) {
         showError(err);
       }
@@ -441,11 +480,15 @@
           map: "-"
         }];
 
-        const { error } = await supabaseClient.from("rooms").update({
-          actions: newActions
-        }).eq("id", room.id);
+        const { error } = await supabaseClient
+          .from("rooms")
+          .update({ actions: newActions })
+          .eq("id", room.id);
 
         if (error) throw error;
+
+        room.actions = newActions;
+        render();
       } catch (err) {
         showError(err);
       }
